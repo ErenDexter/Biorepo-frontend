@@ -1,59 +1,131 @@
-// Shared API + UI types for the superstructure response.
+// Shapes returned by the biorepo FastAPI backend (see backend/src/biorepo_api).
 
 export interface ApiProduct {
-	id: string;
+	slug: string;
 	name: string;
+	terminal: boolean;
+	classification: string[];
 }
 
-export interface ApiRawMaterial {
-	id: string;
+export interface ApiFeedstock {
+	slug: string;
 	name: string;
-	kind: string;
+	/** `feedstock`: biomass declared in R_init. `auxiliary`: reagents augmentation would promote. */
+	kind: 'feedstock' | 'auxiliary';
+	classification: string[];
+	consumers: string[];
 }
 
-export type GraphNodeKind =
-	| 'raw'
-	| 'intermediate'
-	| 'platform'
-	| 'product'
-	| 'utility'
-	| 'byproduct'
-	| 'waste';
+export type MaterialRole = 'raw' | 'intermediate' | 'product' | 'byproduct';
 
-export interface GraphNode {
+export interface MaterialNode {
 	id: string;
-	type: 'material' | 'operation';
+	type: 'material';
 	label: string;
-	/** Material kind, only set when type='material'. */
-	kind?: GraphNodeKind;
-	isPlatform?: boolean;
-	data?: Record<string, unknown>;
+	role: MaterialRole;
+	raw_origin: 'declared' | 'augmented' | null;
+	description: string | null;
+	classification: string[];
+	properties: Record<string, unknown>;
 }
+
+export interface OperationNode {
+	id: string;
+	type: 'operation';
+	label: string;
+	description: string | null;
+	classification: string[];
+	stage: string | null;
+	utilities: Record<string, string>;
+	basis: { material: string; quantity: number; unit: string };
+	linking: { material: string; mu_prime: number; unit: string } | null;
+	/** Specific impact vector h~, keyed by category id. */
+	impacts: Record<string, number>;
+	provenance: Record<string, string>;
+	properties: Record<string, unknown>;
+}
+
+export type GraphNode = MaterialNode | OperationNode;
 
 export interface GraphEdge {
 	id: string;
 	source: string;
 	target: string;
-	data?: {
-		materialId?: string;
-	};
+	role: string;
 }
 
-export interface ApiSolution {
+export interface ImpactCategory {
 	id: string;
-	nodeIds: string[];
-	edgeIds: string[];
-	rawMaterialIds: string[];
+	code: string;
+	name: string;
+	unit: string;
+}
+
+export interface ApiPathway {
+	/** P01, P02, ... realisable first, then by the first impact category. */
+	id: string;
+	key: string;
+	/** Module slugs, in chain order (head first) when assessable. */
+	modules: string[];
+	materials: string[];
+	assessable: boolean;
+	feedstock: string | null;
+	realisable: boolean;
+	utilities: Record<string, string[]>;
+	/** Impact per category code (h). */
+	impacts: Record<string, number> | null;
+	/** Scaling vector s, per module slug. */
+	scaling_factors: Record<string, number> | null;
+	/** Per category code, per module: h~_kj * s_j. */
+	contributions: Record<string, Record<string, number>> | null;
+	warnings: string[];
+	error: { code: string; detail: string } | null;
+}
+
+export interface ApiStructure {
+	id: string;
+	key: string;
+	modules: string[];
+	materials: string[];
+	is_pathway: boolean;
+	pathway_id: string | null;
 }
 
 export interface ApiSuperstructure {
-	nodes: GraphNode[];
-	edges: GraphEdge[];
-	solutions: ApiSolution[];
-	meta: {
-		feasible: boolean;
-		droppedOperationIds: string[];
-		solutionCount: number;
-		truncated: boolean;
+	products: string[];
+	raw_materials: { declared: string[]; augmented: string[] };
+	stats: {
+		modules_selected: number;
+		maximal_structure: number;
+		solution_structures: number;
+		pathways: number;
+		unassessable: number;
+		realisable: number;
 	};
+	warnings: string[];
+	provenance: { library: string; version: number };
+	feasible: boolean;
+	method: string;
+	rank_by: string | null;
+	categories: ImpactCategory[];
+	graph: { nodes: GraphNode[]; edges: GraphEdge[] };
+	pathways: ApiPathway[];
+	structures: ApiStructure[];
+}
+
+export interface ApiLibrary {
+	slug: string;
+	name: string;
+	description: string | null;
+	version: number;
+	license: string | null;
+	counts: { materials: number; modules: number; collections: number; impact_methods: number };
+}
+
+export interface ApiClassificationTerm {
+	id: string;
+	facet: string;
+	code: string;
+	label: string;
+	parent_id: string | null;
 }
