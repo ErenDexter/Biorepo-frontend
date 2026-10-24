@@ -1,0 +1,22 @@
+// Cloudflare Workers deployment. Committing this file stops `wrangler deploy`
+// from auto-configuring the project, which currently installs an adapter for
+// SvelteKit 3 and adds a types check that fails on a fresh checkout.
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	// Workers Builds replaces this with the connected Worker's name if they differ.
+	"name": "webapp",
+	"compatibility_date": "2026-10-24",
+	"compatibility_flags": ["nodejs_als"],
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	// Build as part of `wrangler deploy`, so it works with or without a build
+	// command in the dashboard.
+	"build": {
+		"command": "pnpm run build"
+	},
+	"workers_dev": true,
+	"preview_urls": true
+}
