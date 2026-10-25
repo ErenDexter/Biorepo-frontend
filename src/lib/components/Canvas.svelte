@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import Figure from './Figure.svelte';
 	import type { FigureFrame, FigureLayout, Highlight } from '$lib/figure/layout';
 	import type { FigureSettings } from '$lib/figure/settings.svelte';
@@ -11,7 +12,8 @@
 		showBounds = false,
 		onnodeenter,
 		onnodeleave,
-		onnodeclick
+		onnodeclick,
+		onbackgroundclick
 	}: {
 		layout: FigureLayout;
 		settings: FigureSettings;
@@ -22,6 +24,8 @@
 		onnodeenter: (id: string) => void;
 		onnodeleave: (id: string) => void;
 		onnodeclick: (id: string) => void;
+		/** A click on empty canvas, not on a node and not at the end of a drag. */
+		onbackgroundclick: () => void;
 	} = $props();
 
 	let cw = $state(0);
@@ -40,15 +44,18 @@
 
 	function fit() {
 		if (!cw || !ch || !vw || !vh) return;
-		zoom = Math.min((cw - 2 * SIDE) / vw, (ch - TOP - BOTTOM) / vh, 4);
-		tx = (cw - vw * zoom) / 2;
-		ty = TOP + (ch - TOP - BOTTOM - vh * zoom) / 2;
+		const z = Math.min((cw - 2 * SIDE) / vw, (ch - TOP - BOTTOM) / vh, 4);
+		zoom = z;
+		tx = (cw - vw * z) / 2;
+		ty = TOP + (ch - TOP - BOTTOM - vh * z) / 2;
 	}
 
-	// Refit whenever the drawing changes size or the viewport does.
+	// Refit whenever the drawing changes size or the viewport does -- and only
+	// then: the fit itself must not depend on the zoom it sets, or every zoom
+	// the user makes would be undone at once.
 	$effect(() => {
 		void [vw, vh, cw, ch];
-		fit();
+		untrack(fit);
 	});
 
 	function zoomAt(factor: number, px = cw / 2, py = ch / 2) {
@@ -99,6 +106,10 @@
 	{onpointermove}
 	{onpointerup}
 	onpointercancel={onpointerup}
+	onclick={(e) => {
+		const target = e.target as Element;
+		if (!dragged && !target.closest('[data-node], [data-controls]')) onbackgroundclick();
+	}}
 	role="presentation"
 >
 	<div
@@ -128,6 +139,7 @@
 	</div>
 
 	<div
+		data-controls
 		class="absolute right-3 bottom-3 flex items-center overflow-hidden rounded-md border border-slate-200 bg-white/95 text-xs text-slate-600 shadow-sm backdrop-blur"
 	>
 		<button

@@ -30,8 +30,6 @@ export interface FigureSettings {
 	widthMm: number | null;
 	dpi: number;
 	transparent: boolean;
-	/** Per-node label overrides; lines separated by "\n". */
-	labels: Record<string, string>;
 }
 
 export const DEFAULTS: FigureSettings = {
@@ -51,8 +49,7 @@ export const DEFAULTS: FigureSettings = {
 	marginMm: 1.5,
 	widthMm: null,
 	dpi: 1000,
-	transparent: false,
-	labels: {}
+	transparent: false
 };
 
 /** Elsevier column widths, in mm. */
@@ -73,7 +70,12 @@ const KEY = 'biorepo.figure.v1';
 function load(): FigureSettings {
 	try {
 		const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-		if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
+		if (raw) {
+			// Keep only known settings, so keys from older versions are dropped.
+			const saved = JSON.parse(raw);
+			const known = Object.keys(DEFAULTS).filter((k) => k in saved);
+			return { ...DEFAULTS, ...Object.fromEntries(known.map((k) => [k, saved[k]])) };
+		}
 	} catch {
 		// Unreadable or blocked storage: fall back to defaults.
 	}
@@ -90,7 +92,6 @@ export function saveFigureSettings(): void {
 	}
 }
 
-export function resetFigureSettings(keepLabels = true): void {
-	const labels = figure.labels;
-	Object.assign(figure, structuredClone(DEFAULTS), keepLabels ? { labels } : {});
+export function resetFigureSettings(): void {
+	Object.assign(figure, structuredClone(DEFAULTS));
 }

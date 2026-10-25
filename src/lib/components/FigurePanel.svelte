@@ -38,7 +38,6 @@
 	const customWidth = $derived(
 		figure.widthMm !== null && !COLUMN_WIDTHS.some((c) => c.value === figure.widthMm)
 	);
-	const labelCount = $derived(Object.keys(figure.labels).length);
 
 	async function run(format: 'pdf' | 'svg' | 'png' | 'tiff') {
 		if (!svg || !size) return;
@@ -202,15 +201,6 @@
 				>Scaling factors <i>s</i> on selected pathway</span
 			>
 		</label>
-		{#if labelCount > 0}
-			<button
-				type="button"
-				class="text-[11px] text-slate-500 underline hover:text-slate-800"
-				onclick={() => (figure.labels = {})}
-			>
-				Clear {labelCount} custom label{labelCount === 1 ? '' : 's'}
-			</button>
-		{/if}
 	</section>
 
 	<section class="space-y-2.5">

@@ -4,6 +4,7 @@
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import type {
+	ApiAssessment,
 	ApiClassificationTerm,
 	ApiFeedstock,
 	ApiLibrary,
@@ -61,6 +62,16 @@ export interface SuperstructureQuery {
 	method?: string;
 }
 
+function synthesisBody(q: SuperstructureQuery) {
+	return {
+		products: [q.product],
+		raw_materials: q.declared,
+		module_selection: q.excluded.length ? { exclude_consuming: q.excluded } : {},
+		options: { augment_raw_materials: q.augment },
+		...(q.method ? { method: q.method } : {})
+	};
+}
+
 export const api = {
 	library: () => request<ApiLibrary>('/v1/library'),
 	classifications: () => request<ApiClassificationTerm[]>('/v1/classifications'),
@@ -70,12 +81,16 @@ export const api = {
 	superstructure: (q: SuperstructureQuery) =>
 		request<ApiSuperstructure>('/v1/synthesis/superstructure', {
 			method: 'POST',
-			body: JSON.stringify({
-				products: [q.product],
-				raw_materials: q.declared,
-				module_selection: q.excluded.length ? { exclude_consuming: q.excluded } : {},
-				options: { augment_raw_materials: q.augment },
-				...(q.method ? { method: q.method } : {})
-			})
+			body: JSON.stringify(synthesisBody(q))
+		}),
+	/**
+	 * Assess one generated pathway. The backend re-runs the same synthesis and
+	 * picks the pathway by its modules, so only structures the P-graph generated
+	 * are ever assessed.
+	 */
+	evaluate: (q: SuperstructureQuery, modules: string[], demand = 1) =>
+		request<ApiAssessment>('/v1/lca/evaluate', {
+			method: 'POST',
+			body: JSON.stringify({ ...synthesisBody(q), pathway: { modules }, demand })
 		})
 };

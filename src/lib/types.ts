@@ -129,3 +129,37 @@ export interface ApiClassificationTerm {
 	label: string;
 	parent_id: string | null;
 }
+
+/** One assessment from POST /v1/lca/evaluate: every intermediate of Eq. (6)-(12). */
+export interface ApiAssessment {
+	target: string;
+	/** Amount of the functional unit, FU in Eq. (12). */
+	demand: number;
+	functional_unit: string;
+	conversion_factor: number | null;
+	method: string;
+	/** Row/column j of A: module j and the material its output is measured in. */
+	basis: { index: number; module: string; material: string }[];
+	/** Technology matrix, N x N. */
+	A: number[][];
+	/** Specific impact matrix H~, Z x N; rows are category ids. */
+	H: { rows: string[]; values: number[][] };
+	/** Final demand vector (one unit of the product). */
+	f: number[];
+	/** Scaling vector s = A^-1 f. */
+	s: number[];
+	/** Impact vector h = FU * H~ s. */
+	h: { category: string; code: string; name: string; value: number; unit: string }[];
+	/** Per category id, per module: h~_kj * s_j. */
+	contributions: Record<string, Record<string, number>>;
+	scaling_factors: Record<string, number>;
+	diagnostics: {
+		n_modules: number;
+		condition_number: number;
+		determinant: number;
+		is_linear_chain: boolean;
+	};
+	warnings: string[];
+	provenance: Record<string, unknown>;
+	synthesis: { solution_structures: number; pathways: number; warnings: string[] };
+}

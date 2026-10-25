@@ -41,34 +41,26 @@ function wrap(text: string, max: number): string[] {
 }
 
 /**
- * The lines drawn for a node. A user override wins; otherwise the stored name is
- * split at its first comma into a name and a qualifier ("Lactide production" /
- * "bagasse cogeneration and HFO hot oil"), and the qualifier is set smaller and
- * in italics when enabled for that node type.
+ * The lines drawn for a node. The stored name is split at its first comma into
+ * a name and a qualifier ("Lactide production" / "bagasse cogeneration and HFO
+ * hot oil"); the qualifier is set smaller and in italics when enabled for that
+ * node type.
  */
 export function labelLines(
-	id: string,
 	name: string,
 	isOperation: boolean,
 	s: FigureSettings,
 	annotation?: string
 ): Line[] {
 	const lines: Line[] = [];
-	const override = s.labels[id]?.trim();
-	if (override) {
-		for (const text of override.split('\n')) {
-			if (text.trim()) lines.push({ text: text.trim(), italic: false, scale: 1 });
-		}
-	} else {
-		const cut = name.indexOf(', ');
-		const head = cut < 0 ? name : name.slice(0, cut);
-		const qualifier = cut < 0 ? '' : name.slice(cut + 2);
-		for (const text of wrap(head, s.wrap)) lines.push({ text, italic: false, scale: 1 });
-		const showQualifier = isOperation ? s.operationQualifiers : s.materialQualifiers;
-		if (qualifier && showQualifier) {
-			for (const text of wrap(qualifier, Math.round(s.wrap * 1.12))) {
-				lines.push({ text, italic: true, scale: QUALIFIER_SCALE });
-			}
+	const cut = name.indexOf(', ');
+	const head = cut < 0 ? name : name.slice(0, cut);
+	const qualifier = cut < 0 ? '' : name.slice(cut + 2);
+	for (const text of wrap(head, s.wrap)) lines.push({ text, italic: false, scale: 1 });
+	const showQualifier = isOperation ? s.operationQualifiers : s.materialQualifiers;
+	if (qualifier && showQualifier) {
+		for (const text of wrap(qualifier, Math.round(s.wrap * 1.12))) {
+			lines.push({ text, italic: true, scale: QUALIFIER_SCALE });
 		}
 	}
 	if (annotation) lines.push({ text: annotation, italic: false, scale: QUALIFIER_SCALE });

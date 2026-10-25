@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ApiPathway, ApiStructure, GraphNode, ImpactCategory } from '$lib/types';
 	import { figure } from '$lib/figure/settings.svelte';
+	import { labelLines } from '$lib/figure/text';
 
 	let {
 		node,
@@ -8,7 +9,8 @@
 		structure,
 		categories,
 		terms,
-		names
+		names,
+		onshowlca
 	}: {
 		node: GraphNode | null;
 		pathway: ApiPathway | null;
@@ -18,6 +20,8 @@
 		terms: Map<string, string>;
 		/** Node id -> display name. */
 		names: Map<string, string>;
+		/** Open the step-by-step LCA of the selected pathway. */
+		onshowlca: () => void;
 	} = $props();
 
 	const fmt = new Intl.NumberFormat(undefined, { maximumSignificantDigits: 4 });
@@ -43,13 +47,6 @@
 		if (node.type === 'operation') return 'operating unit';
 		return node.role === 'raw' ? 'raw material' : node.role;
 	});
-
-	function setLabel(id: string, value: string) {
-		const next = { ...figure.labels };
-		if (value.trim()) next[id] = value;
-		else delete next[id];
-		figure.labels = next;
-	}
 </script>
 
 {#snippet rows(entries: [string, unknown][])}
@@ -88,18 +85,14 @@
 		<h2 class="mt-1.5 text-sm leading-snug font-semibold text-slate-900">{node.label}</h2>
 		<p class="mt-0.5 font-mono text-[10px] text-slate-400">{node.id}</p>
 
-		<label class="mt-3 block">
-			<span class="text-[11px] font-medium text-slate-500"
-				>Figure label <span class="font-normal text-slate-400">(one line per row)</span></span
-			>
-			<textarea
-				rows="2"
-				class="mt-0.5 block w-full resize-y rounded-md border border-slate-200 px-2 py-1 text-xs focus:border-slate-400 focus:outline-none"
-				placeholder={node.label.split(', ').join('\n')}
-				value={figure.labels[node.id] ?? ''}
-				oninput={(e) => setLabel(node!.id, e.currentTarget.value)}
-			></textarea>
-		</label>
+		{@render heading('Figure label')}
+		<div
+			class="rounded-md bg-slate-50 px-2.5 py-1.5 text-xs leading-snug text-slate-800 ring-1 ring-slate-900/5"
+		>
+			{#each labelLines(node.label, node.type === 'operation', figure) as line, i (i)}
+				<div class:italic={line.italic} class:text-slate-500={line.italic}>{line.text}</div>
+			{/each}
+		</div>
 
 		{#if node.description}
 			<p class="mt-3 text-xs leading-relaxed text-slate-600">{node.description}</p>
@@ -175,6 +168,11 @@
 		</h2>
 
 		{#if pathway.impacts}
+			<button
+				type="button"
+				class="mt-3 w-full rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+				onclick={onshowlca}>Show LCA calculation steps →</button
+			>
 			{@render heading('Impacts h · per kg product')}
 			{@render rows(
 				categories.map((c) => [c.code, `${fmt.format(pathway.impacts![c.code])} ${c.unit}`])

@@ -196,6 +196,7 @@
 		{@const c = colours(node.kind, muted)}
 		<g
 			role={interactive ? 'button' : undefined}
+			data-node={interactive ? node.id : undefined}
 			onpointerenter={interactive ? () => onnodeenter?.(node.id) : undefined}
 			onpointerleave={interactive ? () => onnodeleave?.(node.id) : undefined}
 			onclick={interactive ? () => onnodeclick?.(node.id) : undefined}

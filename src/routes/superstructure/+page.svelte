@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { api, ApiError } from '$lib/api';
+	import { api, ApiError, type SuperstructureQuery } from '$lib/api';
 	import type { ApiFeedstock, ApiSuperstructure } from '$lib/types';
 	import { figure, saveFigureSettings } from '$lib/figure/settings.svelte';
 	import { figureFrame, layoutFigure, type FigureLayout, type Highlight } from '$lib/figure/layout';
@@ -10,6 +10,7 @@
 	import Figure from '$lib/components/Figure.svelte';
 	import FigurePanel from '$lib/components/FigurePanel.svelte';
 	import Inspector from '$lib/components/Inspector.svelte';
+	import LcaSteps from '$lib/components/LcaSteps.svelte';
 	import PathwayList from '$lib/components/PathwayList.svelte';
 	import RawMaterialList from '$lib/components/RawMaterialList.svelte';
 
@@ -20,6 +21,8 @@
 	let excluded = $state.raw(new Set<string>());
 	let augment = $state(true);
 	let data = $state.raw<ApiSuperstructure | null>(null);
+	/** The synthesis inputs `data` was computed from. */
+	let dataQuery = $state.raw<SuperstructureQuery | null>(null);
 	let loading = $state(true);
 	let errorMsg = $state<string | null>(null);
 	let terms = $state.raw(new Map<string, string>());
@@ -29,7 +32,12 @@
 	let hover = $state.raw<Highlight | null>(null);
 	let hoveredNode = $state<string | null>(null);
 	let pinnedNode = $state<string | null>(null);
-	let tab = $state<'figure' | 'inspect'>('figure');
+	let tab = $state<'figure' | 'inspect' | 'lca'>('figure');
+	const TABS = [
+		{ id: 'figure', label: 'Figure' },
+		{ id: 'inspect', label: 'Inspector' },
+		{ id: 'lca', label: 'LCA steps' }
+	] as const;
 
 	let layout = $state.raw<FigureLayout | null>(null);
 	let exportSvg = $state<SVGSVGElement>();
@@ -48,14 +56,11 @@
 		const ticket = ++requestSeq;
 		loading = true;
 		try {
-			const res = await api.superstructure({
-				product,
-				declared: [...declared],
-				excluded: [...excluded],
-				augment
-			});
+			const query = { product, declared: [...declared], excluded: [...excluded], augment };
+			const res = await api.superstructure(query);
 			if (ticket !== requestSeq) return;
 			data = res;
+			dataQuery = query;
 			errorMsg = null;
 			const pool = selection?.kind === 'pathway' ? res.pathways : res.structures;
 			if (selection && !pool.some((x) => x.key === selection!.key)) selection = null;
@@ -84,7 +89,8 @@
 			.catch(() => {});
 		try {
 			feedstocks = await api.feedstocks(product);
-			declared = new Set(feedstocks.filter((f) => f.kind === 'feedstock').map((f) => f.slug));
+			// Every candidate starts declared in R_init, auxiliary inputs included.
+			declared = new Set(feedstocks.map((f) => f.slug));
 		} catch (e) {
 			errorMsg = message(e);
 			loading = false;
@@ -165,7 +171,6 @@
 		isolated ? graph.edges.filter((e) => selectionHighlight!.edges.has(e.id)) : graph.edges
 	);
 	const exportHighlight = $derived(isolated ? null : selectionHighlight);
-	const screenHighlight = $derived(hover ?? exportHighlight);
 
 	const annotations = $derived.by(() => {
 		const out = new Map<string, string>();
@@ -187,8 +192,8 @@
 				: null;
 	}
 
-	function nodeEnter(id: string) {
-		hoveredNode = id;
+	/** A node, its arcs and the nodes at their other ends. */
+	function neighbourhood(id: string): Highlight {
 		const nodes = new Set([id]);
 		const edges = new Set<string>();
 		for (const e of graph.edges) {
@@ -198,8 +203,21 @@
 				nodes.add(e.target);
 			}
 		}
-		hover = { nodes, edges };
+		return { nodes, edges };
 	}
+
+	function nodeEnter(id: string) {
+		hoveredNode = id;
+		hover = neighbourhood(id);
+	}
+
+	// A clicked node stays highlighted until the canvas background is clicked;
+	// hovering still previews other nodes, and the selected structure shows again
+	// once nothing is pinned.
+	const pinnedHighlight = $derived(
+		pinnedNode && nodesById.has(pinnedNode) ? neighbourhood(pinnedNode) : null
+	);
+	const screenHighlight = $derived(hover ?? pinnedHighlight ?? exportHighlight);
 
 	const inspectedNode = $derived(nodesById.get(pinnedNode ?? hoveredNode ?? '') ?? null);
 
@@ -385,22 +403,27 @@
 						pinnedNode = pinnedNode === id ? null : id;
 						if (pinnedNode) tab = 'inspect';
 					}}
+					onbackgroundclick={() => (pinnedNode = null)}
 				/>
 			{/if}
 		</main>
 
-		<aside class="flex w-80 shrink-0 flex-col border-l border-slate-200 bg-white">
+		<aside
+			class="flex shrink-0 flex-col border-l border-slate-200 bg-white {tab === 'lca'
+				? 'w-[30rem]'
+				: 'w-80'}"
+		>
 			<div class="flex shrink-0 border-b border-slate-200 px-2">
-				{#each [{ id: 'figure', label: 'Figure & export' }, { id: 'inspect', label: 'Inspector' }] as t (t.id)}
+				{#each TABS as t (t.id)}
 					<button
 						type="button"
-						class="-mb-px border-b-2 px-3 py-2.5 text-xs font-medium {tab === t.id
+						class="-mb-px border-b-2 px-3 py-2.5 text-xs font-medium whitespace-nowrap {tab === t.id
 							? 'border-slate-900 text-slate-900'
 							: 'border-transparent text-slate-500 hover:text-slate-800'}"
-						onclick={() => (tab = t.id as 'figure' | 'inspect')}
+						onclick={() => (tab = t.id)}
 					>
 						{t.label}
-						{#if t.id === 'inspect' && (pinnedNode || selectedLabel)}<span
+						{#if (t.id === 'inspect' && (pinnedNode || selectedLabel)) || (t.id === 'lca' && selectedPathway)}<span
 								class="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-slate-900 align-middle"
 							></span>{/if}
 					</button>
@@ -415,6 +438,16 @@
 						title={figureTitle}
 						hasPathwaySelection={!!selectedPathway?.scaling_factors}
 					/>
+				{:else if tab === 'lca'}
+					{#if dataQuery}
+						<LcaSteps
+							pathway={selectedPathway}
+							structure={selectedStructure}
+							query={dataQuery}
+							{names}
+							{productName}
+						/>
+					{/if}
 				{:else}
 					{#if pinnedNode}
 						<div
@@ -435,6 +468,10 @@
 						categories={data?.categories ?? []}
 						{terms}
 						{names}
+						onshowlca={() => {
+							pinnedNode = null;
+							tab = 'lca';
+						}}
 					/>
 				{/if}
 			</div>

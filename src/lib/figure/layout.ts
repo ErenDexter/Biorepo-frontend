@@ -174,7 +174,7 @@ export async function layoutFigure(
 	for (const n of ordered) {
 		const isOp = n.type === 'operation';
 		const kind = nodeKind(n, s);
-		const lines = labelLines(n.id, n.label, isOp, s, annotations.get(n.id));
+		const lines = labelLines(n.label, isOp, s, annotations.get(n.id));
 		const text = blockSize(lines, m.fs, s.font, measure);
 		const ins = incoming.get(n.id) ?? [];
 		const outs = outgoing.get(n.id) ?? [];
