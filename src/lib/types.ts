@@ -93,7 +93,7 @@ export interface ApiStructure {
 
 export interface ApiSuperstructure {
 	products: string[];
-	raw_materials: { declared: string[]; augmented: string[] };
+	raw_materials: { declared: string[]; augmented: string[]; excluded: string[] };
 	stats: {
 		modules_selected: number;
 		maximal_structure: number;

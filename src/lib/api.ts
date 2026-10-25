@@ -56,7 +56,7 @@ export interface SuperstructureQuery {
 	product: string;
 	/** R_init: raw materials the user declares. */
 	declared: string[];
-	/** Feedstocks taken out of the study, with the modules that consume them. */
+	/** Feedstocks taken out of the study: removed from R, so MSG drops what needs them. */
 	excluded: string[];
 	augment: boolean;
 	method?: string;
@@ -66,7 +66,7 @@ function synthesisBody(q: SuperstructureQuery) {
 	return {
 		products: [q.product],
 		raw_materials: q.declared,
-		module_selection: q.excluded.length ? { exclude_consuming: q.excluded } : {},
+		exclude_raw_materials: q.excluded,
 		options: { augment_raw_materials: q.augment },
 		...(q.method ? { method: q.method } : {})
 	};
