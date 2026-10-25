@@ -2,6 +2,7 @@
 	import type { ApiPathway, ApiStructure, GraphNode, ImpactCategory } from '$lib/types';
 	import { figure } from '$lib/figure/settings.svelte';
 	import { labelLines } from '$lib/figure/text';
+	import ContributionChart from './ContributionChart.svelte';
 
 	let {
 		node,
@@ -180,6 +181,17 @@
 		{/if}
 
 		{#if pathway.scaling_factors && pathway.contributions}
+			{@render heading('Contribution of each module')}
+			<ContributionChart
+				series={pathway.modules.map((slug) => ({ id: slug, label: head(slug) }))}
+				rows={categories.map((c) => ({
+					code: c.code,
+					name: c.name,
+					unit: c.unit,
+					total: pathway.impacts?.[c.code] ?? 0,
+					parts: pathway.contributions![c.code] ?? {}
+				}))}
+			/>
 			{@render heading('Chain · scaling s and share of h (%)')}
 			<div class="overflow-x-auto rounded-md ring-1 ring-slate-900/5">
 				<table class="w-full text-[11px] tabular-nums">

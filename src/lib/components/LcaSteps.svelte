@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { api, ApiError, type SuperstructureQuery } from '$lib/api';
 	import type { ApiAssessment, ApiPathway, ApiStructure } from '$lib/types';
+	import ContributionChart from './ContributionChart.svelte';
 
 	let {
 		pathway,
@@ -276,6 +277,18 @@
 			</table>
 
 			{@render step(7, 'Contributions h̃ₖⱼ sⱼ', 'share of h, %')}
+			<div class="mb-3">
+				<ContributionChart
+					series={r.basis.map((b) => ({ id: b.module, label: head(b.module) }))}
+					rows={r.h.map((c) => ({
+						code: c.code,
+						name: c.name,
+						unit: c.unit,
+						total: c.value,
+						parts: r.contributions[c.category]
+					}))}
+				/>
+			</div>
 			<table class="w-full text-[11px] tabular-nums">
 				<thead class="text-[10px] text-slate-400">
 					<tr>
@@ -293,15 +306,7 @@
 								{@const share = c.value
 									? (r.contributions[c.category][b.module] / c.value) * 100
 									: 0}
-								<td class="py-1 pl-1 text-right">
-									<span class="relative inline-block min-w-11">
-										<span
-											class="absolute inset-y-0 right-0 rounded-sm bg-slate-200"
-											style="width: {Math.max(0, Math.min(100, share))}%"
-										></span>
-										<span class="relative pr-0.5 text-slate-800">{pct.format(share)}</span>
-									</span>
-								</td>
+								<td class="py-1 pl-1 text-right text-slate-800">{pct.format(share)}</td>
 							{/each}
 						</tr>
 					{/each}
